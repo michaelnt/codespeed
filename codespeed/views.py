@@ -351,7 +351,7 @@ def gettimelinedata(request):
         Http404()
 
     benchmarks = []
-    number_of_revs = data.get('revs', 10)
+    number_of_revs = int(data.get('revs', 10))
 
     if data['ben'] == 'grid':
         benchmarks = Benchmark.objects.all().order_by('name')
@@ -360,6 +360,17 @@ def gettimelinedata(request):
         benchmarks = []
     else:
         benchmarks = [get_object_or_404(Benchmark, name=data['ben'])]
+
+
+    resultData = {}
+    for result in Result.objects.filter(environment=environment):
+        key = (result.benchmark_id, result.executable_id)
+        resultData.setdefault(key, []).append(result)
+    dates = {}
+    commitids = {}
+    for revision in Revision.objects.all():
+        dates[revision.id] = revision.date
+        commitids[revision.id] = revision.commitid
 
     baselinerev = None
     baselineexe = None
@@ -388,28 +399,22 @@ def gettimelinedata(request):
             append = False
             timeline['branches'][branch] = {}
             for executable in executables:
-                resultquery = Result.objects.filter(
-                        benchmark=bench
-                    ).filter(
-                        environment=environment
-                    ).filter(
-                        executable=executable
-                    ).filter(
-                        revision__branch__name=branch
-                    ).select_related(
-                        "revision"
-                    ).order_by('-revision__date')[:number_of_revs]
-                if not len(resultquery):
+                resultquery = resultData.get((bench.id, int(executable)))
+                if not resultquery:
                     continue
+                resultquery.sort(key=lambda result: dates[result.revision_id])
+                resultquery.reverse()
+                del resultquery[number_of_revs:]
 
                 results = []
                 for res in resultquery:
                     std_dev = ""
                     if res.std_dev != None:
                         std_dev = res.std_dev
-                    results.append(
-                        [str(res.revision.date), res.value, std_dev, res.revision.get_short_commitid(), branch]
-                    )
+                    results.append([str(dates[res.revision_id]),
+                                    res.value, std_dev,
+                                    str(commitids[res.revision_id]),
+                                    branch])
                 timeline['branches'][branch][executable] = results
                 append = True
             if baselinerev != None and append:
