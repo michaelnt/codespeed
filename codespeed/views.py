@@ -361,16 +361,16 @@ def gettimelinedata(request):
     else:
         benchmarks = [get_object_or_404(Benchmark, name=data['ben'])]
 
-
     resultData = {}
     for result in Result.objects.filter(environment=environment):
-        key = (result.benchmark_id, result.executable_id)
+        key = (result.benchmark_id, result.executable_id, result.revision.branch.name)
         resultData.setdefault(key, []).append(result)
     dates = {}
     commitids = {}
     for revision in Revision.objects.all():
         dates[revision.id] = revision.date
         commitids[revision.id] = revision.commitid
+
 
     baselinerev = None
     baselineexe = None
@@ -399,7 +399,7 @@ def gettimelinedata(request):
             append = False
             timeline['branches'][branch] = {}
             for executable in executables:
-                resultquery = resultData.get((bench.id, int(executable)))
+                resultquery = resultData.get((bench.id, int(executable), branch))
                 if not resultquery:
                     continue
                 resultquery.sort(key=lambda result: dates[result.revision_id])
