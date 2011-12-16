@@ -346,6 +346,19 @@ class Timeline(TestCase):
             [u'2011-04-13 17:04:22', 2000.0, 1.11111, u'2', u'default'],
             "Wrong data returned: ")
 
+    def test_gettimelinedata_queries(self):
+        path = reverse('codespeed.views.gettimelinedata')
+        data = {
+            "exe":  "1,2",
+            "base": "2+4",
+            "ben":  "float",
+            "env":  "1",
+            "revs": 20
+        }
+        with self.assertNumQueries(8):
+            response = self.client.get(path, data)
+            self.assertEquals(response.status_code, 200)
+        
 
 class CodespeedSettings(TestCase):
     """Test codespeed.settings
